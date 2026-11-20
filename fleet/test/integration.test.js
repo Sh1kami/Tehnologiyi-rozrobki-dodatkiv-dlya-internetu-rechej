@@ -107,6 +107,12 @@ test('MQTT, SQLite, REST, roles, Socket.IO rooms, SSE replay and optimistic sett
   assert.equal((await call(circle,driver.accessToken,json('PUT',shape))).status,403);
   assert.equal((await call(circle,west.accessToken,json('PUT',{...shape,radiusM:99}))).status,400);
   assert.equal((await call(polygon,west.accessToken,json('PUT',{type:'Polygon'}))).status,400);
+  let workerRadius;
+  const observeConfig=(topic,raw)=>{
+    if(topic==='fleet/truck-07/geofence-config')workerRadius=JSON.parse(raw).radiusM;
+  };
+  geo.on('message',observeConfig);
+  t.after(()=>geo.off('message',observeConfig));
   for(const radiusM of [100,200,300]){
     const updated={...shape,radiusM};
     assert.deepEqual(await(await call(circle,west.accessToken,json('PUT',updated))).json(),updated);
@@ -116,10 +122,12 @@ test('MQTT, SQLite, REST, roles, Socket.IO rooms, SSE replay and optimistic sett
   assert.deepEqual(audit.map(row=>JSON.parse(row.after_shape).radiusM),[100,200,300]);
   assert.ok(audit.every(row=>row.author==='dispatch-west'));
   assert.equal(JSON.parse(audit[2].before_shape).radiusM,200);
-  const exit=once(sw,'geofence:exit');
+  await until(()=>workerRadius===300);
+  let exit;
+  sw.once('geofence:exit',event=>{exit=event;});
   await publish('truck-07','lat',50.45,now+10);
   await publish('truck-07','lon',30.51,now+10);
-  assert.deepEqual((await exit)[0],{device:'truck-07',ts:now+10});
+  assert.deepEqual(await until(()=>exit),{device:'truck-07',ts:now+10});
 
   const alert='/alerts?device=truck-07&metric=fuel&threshold=10';
   assert.equal((await call(alert,driver.accessToken)).status,403);

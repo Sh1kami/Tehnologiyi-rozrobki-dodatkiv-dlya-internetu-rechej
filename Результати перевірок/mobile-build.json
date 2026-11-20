@@ -2,8 +2,8 @@
   "flutter": "3.44.0",
   "analyze": "No issues found",
   "flutter_tests_passed": 2,
-  "web_build": "built and exercised with Chromium",
-  "android_debug_apk_bytes": 150538890,
-  "android_debug_apk_sha256": "4be21f1e3a627d9e9010249c978d2b8e0c4fb38678fc19d4ba68087eb9b57e2b",
+  "web_build": "built and exercised with Chromium; see flutter-browser.json",
+  "android_debug_apk_bytes": 150799820,
+  "android_debug_apk_sha256": "08afbf2642189d9d4ad48a8ff3db33d2ef768187bff46ce8bd5167c2ea05974b",
   "apk_runtime": "not run on a device"
 }
