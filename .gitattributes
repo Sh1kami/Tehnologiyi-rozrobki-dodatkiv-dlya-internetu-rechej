@@ -1,0 +1,5 @@
+* text=auto
+*.pdf binary
+*.png binary
+*.docx binary
+*.pptx binary

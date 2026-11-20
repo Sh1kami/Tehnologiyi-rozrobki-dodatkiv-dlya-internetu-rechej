@@ -1,0 +1,147 @@
+
+> fleet-watch@1.0.0 coverage
+> node --test --test-concurrency=1 --experimental-test-coverage --test-coverage-include=src/domain.js
+
+TAP version 13
+# Subtest: overspeed 58/60/0
+ok 1 - overspeed 58/60/0
+  ---
+  duration_ms: 0.9167
+  type: 'test'
+  ...
+# Subtest: overspeed 60/60/0
+ok 2 - overspeed 60/60/0
+  ---
+  duration_ms: 0.0823
+  type: 'test'
+  ...
+# Subtest: overspeed 61/60/0
+ok 3 - overspeed 61/60/0
+  ---
+  duration_ms: 0.0537
+  type: 'test'
+  ...
+# Subtest: overspeed 63/60/3
+ok 4 - overspeed 63/60/3
+  ---
+  duration_ms: 0.0408
+  type: 'test'
+  ...
+# Subtest: overspeed 64/60/3
+ok 5 - overspeed 64/60/3
+  ---
+  duration_ms: 0.0395
+  type: 'test'
+  ...
+# Subtest: invalid speed -1,60
+ok 6 - invalid speed -1,60
+  ---
+  duration_ms: 0.4794
+  type: 'test'
+  ...
+# Subtest: invalid speed NaN,60
+ok 7 - invalid speed NaN,60
+  ---
+  duration_ms: 0.2144
+  type: 'test'
+  ...
+# Subtest: invalid speed 50,0
+ok 8 - invalid speed 50,0
+  ---
+  duration_ms: 0.0765
+  type: 'test'
+  ...
+# Subtest: invalid speed 50,60,-1
+ok 9 - invalid speed 50,60,-1
+  ---
+  duration_ms: 0.0651
+  type: 'test'
+  ...
+# Subtest: geofence inside
+ok 10 - geofence inside
+  ---
+  duration_ms: 0.268
+  type: 'test'
+  ...
+# Subtest: geofence outside
+ok 11 - geofence outside
+  ---
+  duration_ms: 0.1106
+  type: 'test'
+  ...
+# Subtest: geofence edge
+ok 12 - geofence edge
+  ---
+  duration_ms: 0.0429
+  type: 'test'
+  ...
+# Subtest: geofence vertex
+ok 13 - geofence vertex
+  ---
+  duration_ms: 0.5569
+  type: 'test'
+  ...
+# Subtest: geofence rejects invalid input
+ok 14 - geofence rejects invalid input
+  ---
+  duration_ms: 0.0989
+  type: 'test'
+  ...
+# Subtest: GPS rejects latitude and longitude beyond bounds
+ok 15 - GPS rejects latitude and longitude beyond bounds
+  ---
+  duration_ms: 0.1153
+  type: 'test'
+  ...
+# Subtest: invalid telemetry fields, bounds and engine readings
+ok 16 - invalid telemetry fields, bounds and engine readings
+  ---
+  duration_ms: 0.6387
+  type: 'test'
+  ...
+# Subtest: status boundaries for stale GPS, fuel, zone and speed
+ok 17 - status boundaries for stale GPS, fuel, zone and speed
+  ---
+  duration_ms: 0.1534
+  type: 'test'
+  ...
+# Subtest: settings validation and bucket averages
+ok 18 - settings validation and bucket averages
+  ---
+  duration_ms: 0.1981
+  type: 'test'
+  ...
+# Subtest: RDP preserves endpoints and order, <= 500 points
+ok 19 - RDP preserves endpoints and order, <= 500 points
+  ---
+  duration_ms: 16.8621
+  type: 'test'
+  ...
+# (node:9332) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# {"mqtt":{"received":10,"stored":8,"rejected":1,"duplicate":1,"geofence":4},"rooms":{"west":6,"east":2},"sseReplay":5,"settings":[403,400,200,412]}
+# Subtest: MQTT, SQLite, REST, roles, Socket.IO rooms, SSE replay and optimistic settings
+ok 20 - MQTT, SQLite, REST, roles, Socket.IO rooms, SSE replay and optimistic settings
+  ---
+  duration_ms: 628.0381
+  type: 'test'
+  ...
+1..20
+# tests 20
+# suites 0
+# pass 20
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1175.6145
+# start of coverage report
+# -----------------------------------------------------------
+# file       | line % | branch % | funcs % | uncovered lines
+# -----------------------------------------------------------
+# src        |        |          |         |
+#  domain.js | 100.00 |    98.67 |  100.00 |
+# -----------------------------------------------------------
+# all files  | 100.00 |    98.67 |  100.00 |
+# -----------------------------------------------------------
+# end of coverage report

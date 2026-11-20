@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 650">
+<title>Вайрфрейм екрана диспетчера Fleet Watch</title>
+<rect width="1200" height="650" fill="#f5f4ef"/>
+<g stroke="#52695f" fill="#fffefa" stroke-width="2">
+<rect x="40" y="39" width="1120" height="58" rx="5"/>
+<rect x="40" y="120" width="340" height="335" rx="5"/>
+<rect x="400" y="120" width="760" height="335" rx="5"/>
+<rect x="40" y="474" width="1120" height="132" rx="5"/>
+<rect x="60" y="184" width="300" height="51" rx="4"/>
+<rect x="60" y="246" width="300" height="51" rx="4"/>
+<rect x="60" y="308" width="300" height="51" rx="4"/>
+<rect x="60" y="370" width="300" height="51" rx="4"/>
+</g><g stroke="#719889" fill="none" stroke-width="3"><path d="M600 330l58-22 60 35 58-45 59 25 58-40 70 10"/><path d="M410 572h700M93 562l110 2 110-7 110 1 110-12 110 3 110-6 110-9 110-3 110-10"/></g>
+<g font-family="Arial" font-size="21" fill="#21383f">
+<text x="61" y="74">Fleet Watch · Статус з’єднання</text><text x="62" y="157">Транспорт · Фільтри</text><text x="419" y="157">Позиція та геозона</text><text x="61" y="508">Історія пального · Доба / Тиждень · CSV</text>
+<text x="78" y="216">ТЗ · Норма</text><text x="78" y="278">ТЗ · Перевищення</text><text x="78" y="340">ТЗ · Мало пального</text><text x="78" y="402">ТЗ · Немає GPS</text>
+</g></svg>

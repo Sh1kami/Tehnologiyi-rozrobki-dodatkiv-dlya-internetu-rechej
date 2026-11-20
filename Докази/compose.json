@@ -1,0 +1,94 @@
+{
+  "initial": {
+    "http": 200,
+    "body": {
+      "status": "ok",
+      "checks": {
+        "db": "up",
+        "mqtt": "up"
+      }
+    }
+  },
+  "containers": [
+    {
+      "Service": "backend",
+      "Image": "fleet-watch:local",
+      "State": "running",
+      "Health": "healthy",
+      "Status": "Up 6 seconds (healthy)"
+    },
+    {
+      "Service": "broker",
+      "Image": "eclipse-mosquitto:2.0.22",
+      "State": "running",
+      "Health": "healthy",
+      "Status": "Up 11 seconds (healthy)"
+    },
+    {
+      "Service": "geofence",
+      "Image": "fleet-watch:local",
+      "State": "running",
+      "Health": "",
+      "Status": "Up Less than a second"
+    },
+    {
+      "Service": "proxy",
+      "Image": "nginx:1.28-alpine",
+      "State": "running",
+      "Health": "",
+      "Status": "Up Less than a second"
+    }
+  ],
+  "gps_before_restart": 1,
+  "after_restart": {
+    "http": 200,
+    "body": {
+      "status": "ok",
+      "checks": {
+        "db": "up",
+        "mqtt": "up"
+      }
+    }
+  },
+  "gps_after_restart": 1,
+  "ws_smoke": {
+    "health": {
+      "status": "ok",
+      "checks": {
+        "db": "up",
+        "mqtt": "up"
+      }
+    },
+    "ws": "connected",
+    "metrics": {
+      "received": 0,
+      "stored": 0,
+      "rejected": 0,
+      "duplicate": 0,
+      "geofence": 0,
+      "connections": 1,
+      "dispatchers": 1,
+      "sse": 0
+    }
+  },
+  "broker_down": {
+    "http": 503,
+    "body": {
+      "status": "degraded",
+      "checks": {
+        "db": "up",
+        "mqtt": "down"
+      }
+    }
+  },
+  "broker_restored": {
+    "http": 200,
+    "body": {
+      "status": "ok",
+      "checks": {
+        "db": "up",
+        "mqtt": "up"
+      }
+    }
+  }
+}

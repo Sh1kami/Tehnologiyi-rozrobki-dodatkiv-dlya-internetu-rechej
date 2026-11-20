@@ -1,0 +1,41 @@
+name: Verify Fleet Watch
+on: [push, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: fleet
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: fleet/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: fleet
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: fleet/package-lock.json
+      - run: npm ci
+      - run: npm run coverage
+  build-image:
+    needs: [lint, test]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t fleet-watch:ci fleet
+      - run: docker run --rm fleet-watch:ci node -e "if(process.getuid()===0)process.exit(1)"

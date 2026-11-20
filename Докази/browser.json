@@ -1,0 +1,18 @@
+{
+  "web": {
+    "geoBefore": "50.44071,30.50134",
+    "geoAfter": "50.44007,30.50105",
+    "chart": true,
+    "offline": true,
+    "week": true,
+    "download": "truck-07-track.csv",
+    "mobileNoOverflow": true
+  },
+  "flutterWeb": {
+    "flutterList": true,
+    "flutterDetail": true,
+    "live": true,
+    "invalid31": true,
+    "saved65": true
+  }
+}

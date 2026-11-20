@@ -1,0 +1,15 @@
+{
+  "first": [
+    1,
+    2,
+    3
+  ],
+  "pausedMs": 5242,
+  "replay": [
+    4,
+    5,
+    6
+  ],
+  "duplicate": 0,
+  "scope": "new messages accepted after server restart while client was still disconnected"
+}

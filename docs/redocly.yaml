@@ -1,0 +1,3 @@
+rules:
+  spec: error
+  no-unresolved-refs: error
