@@ -1,0 +1,41 @@
+name: Deploy Fleet Watch
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing GHCR tag (sha-abcdef0 or semver)
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: fleet-production
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      IMAGE_TAG: ${{ inputs.tag }}
+      HOST: ${{ secrets.FLEET_SSH_HOST }}
+      USER: ${{ secrets.FLEET_SSH_USER }}
+      SSH_KEY: ${{ secrets.FLEET_SSH_KEY }}
+      KNOWN_HOSTS: ${{ secrets.FLEET_KNOWN_HOSTS }}
+      REMOTE_PATH: ${{ vars.FLEET_REMOTE_PATH }}
+    steps:
+      - name: Deploy published image
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$IMAGE_TAG" =~ ^(sha-[0-9a-f]{7,40}|[0-9]+\.[0-9]+\.[0-9]+)$ ]]
+          [[ "$HOST" =~ ^[A-Za-z0-9][A-Za-z0-9.-]*$ ]]
+          [[ "$USER" =~ ^[a-z_][a-z0-9_-]*$ ]]
+          [[ "$REMOTE_PATH" =~ ^/[A-Za-z0-9_./-]+$ ]]
+          [[ -n "$SSH_KEY" && -n "$KNOWN_HOSTS" ]]
+          umask 077
+          printf '%s\n' "$SSH_KEY" > "$RUNNER_TEMP/fleet-deploy-key"
+          printf '%s\n' "$KNOWN_HOSTS" > "$RUNNER_TEMP/fleet-known-hosts"
+          trap 'rm -f "$RUNNER_TEMP/fleet-deploy-key" "$RUNNER_TEMP/fleet-known-hosts"' EXIT
+          ssh -i "$RUNNER_TEMP/fleet-deploy-key" -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            -o "UserKnownHostsFile=$RUNNER_TEMP/fleet-known-hosts" -o ConnectTimeout=15 \
+            "$USER@$HOST" "bash '$REMOTE_PATH/fleet/deploy.sh' '$IMAGE_TAG'"

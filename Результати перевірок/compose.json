@@ -9,36 +9,7 @@
       }
     }
   },
-  "containers": [
-    {
-      "Service": "backend",
-      "Image": "fleet-watch:local",
-      "State": "running",
-      "Health": "healthy",
-      "Status": "Up 6 seconds (healthy)"
-    },
-    {
-      "Service": "broker",
-      "Image": "eclipse-mosquitto:2.0.22",
-      "State": "running",
-      "Health": "healthy",
-      "Status": "Up 11 seconds (healthy)"
-    },
-    {
-      "Service": "geofence",
-      "Image": "fleet-watch:local",
-      "State": "running",
-      "Health": "",
-      "Status": "Up Less than a second"
-    },
-    {
-      "Service": "proxy",
-      "Image": "nginx:1.28-alpine",
-      "State": "running",
-      "Health": "",
-      "Status": "Up Less than a second"
-    }
-  ],
+  "containers": "{\"Command\":\"\\\"docker-entrypoint.s…\\\"\",\"CreatedAt\":\"2026-11-20 13:19:19 +0200 EET\",\"Engine\":\"\",\"ExitCode\":0,\"Health\":\"healthy\",\"ID\":\"291c7195a2ff\",\"Image\":\"fleet-watch:local\",\"Labels\":\"com.docker.compose.image=sha256:52d8dea021e29585327db8aad5d8977a534e8e4ccd7c1758ff42fabfecaf63c8,com.docker.compose.oneoff=False,com.docker.compose.project=fleetiot-coursework,com.docker.compose.project.config_files=C:\\\\Users\\\\Shikami\\\\Desktop\\\\Учеба 2\\\\Технології розробки додатків для інтернету речей\\\\Готові роботи\\\\fleet\\\\compose.yml,com.docker.compose.service=backend,com.docker.compose.depends_on=broker:service_healthy:false,com.docker.compose.project.working_dir=C:\\\\Users\\\\Shikami\\\\Desktop\\\\Учеба 2\\\\Технології розробки додатків для інтернету речей\\\\Готові роботи\\\\fleet,com.docker.compose.version=5.6.1,desktop.docker.io/ports.scheme=v2,com.docker.compose.config-hash=76b37b13d8b9e42d53c9a82d0977f8c85dc2fe43a5018b45b9165c5b7fdfb0e9,com.docker.compose.container-number=1\",\"LocalVolumes\":\"1\",\"Mounts\":\"fleetiot-cours…\",\"Name\":\"fleetiot-coursework-backend-1\",\"Names\":\"fleetiot-coursework-backend-1\",\"Networks\":\"fleetiot-coursework_default\",\"Ports\":\"3080/tcp\",\"Project\":\"fleetiot-coursework\",\"Publishers\":[{\"URL\":\"\",\"TargetPort\":3080,\"PublishedPort\":0,\"Protocol\":\"tcp\"}],\"RunningFor\":\"12 seconds ago\",\"Service\":\"backend\",\"Size\":\"0B\",\"State\":\"running\",\"Status\":\"Up 6 seconds (healthy)\"}\n{\"Command\":\"\\\"/docker-entrypoint.…\\\"\",\"CreatedAt\":\"2026-11-20 13:19:18 +0200 EET\",\"Engine\":\"\",\"ExitCode\":0,\"Health\":\"healthy\",\"ID\":\"45ca6db94e46\",\"Image\":\"eclipse-mosquitto:2.0.22\",\"Labels\":\"com.docker.compose.project.working_dir=C:\\\\Users\\\\Shikami\\\\Desktop\\\\Учеба 2\\\\Технології розробки додатків для інтернету речей\\\\Готові роботи\\\\fleet,desktop.docker.io/binds/1/Source=C:\\\\Users\\\\Shikami\\\\Desktop\\\\Учеба 2\\\\Технології розробки додатків для інтернету речей\\\\Готові роботи\\\\fleet\\\\mosquitto.conf,org.opencontainers.image.description=Eclipse Mosquitto MQTT Broker,org.opencontainers.image.documentation=https://mosquitto.org/documentation/,org.opencontainers.image.licenses=EPL-2.0 OR BSD-3-Clause,org.opencontainers.image.source=https://github.com/eclipse-mosquitto/mosquitto,org.opencontainers.image.title=eclipse-mosquitto,desktop.docker.io/binds/1/Target=/mosquitto/config/mosquitto.conf,com.docker.compose.image=sha256:8c7d1b58606baca19f7e5ccbaececac9a92f34ae6c56e7ce3b8f78a05cf98210,org.opencontainers.image.url=https://mosquitto.org/,com.docker.compose.version=5.6.1,org.opencontainers.image.authors=Roger Light \\u003croger@atchoo.org\\u003e,org.opencontainers.image.version=2.0.22,desktop.docker.io/binds/1/SourceKind=hostFile,desktop.docker.io/ports.scheme=v2,com.docker.compose.config-hash=14b60a8be3f058361eaa4eb8fcf80d6c16be85eb4d6651ad3e1b71809fcdaa71,com.docker.compose.container-number=1,com.docker.compose.depends_on=,com.docker.compose.project=fleetiot-coursework,com.docker.compose.project.config_files=C:\\\\Users\\\\Shikami\\\\Desktop\\\\Учеба 2\\\\Технології розробки додатків для інтернету речей\\\\Готові роботи\\\\fleet\\\\compose.yml,com.docker.compose.service=broker,com.docker.compose.oneoff=False\",\"LocalVolumes\":\"2\",\"Mounts\":\"fleetiot-cours…,ee8f480ef85ab6…,/run/desktop/m…\",\"Name\":\"fleetiot-coursework-broker-1\",\"Names\":\"fleetiot-coursework-broker-1\",\"Networks\":\"fleetiot-coursework_default\",\"Ports\":\"1883/tcp\",\"Project\":\"fleetiot-coursework\",\"Publishers\":[{\"URL\":\"\",\"TargetPort\":1883,\"PublishedPort\":0,\"Protocol\":\"tcp\"}],\"RunningFor\":\"13 seconds ago\",\"Service\":\"broker\",\"Size\":\"0B\",\"State\":\"running\",\"Status\":\"Up 12 seconds (healthy)\"}\n{\"Command\":\"\\\"docker-entrypoint.s…\\\"\",\"CreatedAt\":\"2026-11-20 13:19:19 +0200 EET\",\"Engine\":\"\",\"ExitCode\":0,\"Health\":\"\",\"ID\":\"11cf8fc11c69\",\"Image\":\"fleet-watch:local\",\"Labels\":\"desktop.docker.io/ports.scheme=v2,com.docker.compose.depends_on=backend:service_healthy:false,com.docker.compose.project.working_dir=C:\\\\Users\\\\Shikami\\\\Desktop\\\\Учеба 2\\\\Технології розробки додатків для інтернету речей\\\\Готові роботи\\\\fleet,com.docker.compose.service=geofence,com.docker.compose.version=5.6.1,com.docker.compose.config-hash=f942fa5cc7d6ee87ff7629b9490350522bbbe957e8fd7e4bcc8e0ca8893fc21b,com.docker.compose.container-number=1,com.docker.compose.image=sha256:52d8dea021e29585327db8aad5d8977a534e8e4ccd7c1758ff42fabfecaf63c8,com.docker.compose.oneoff=False,com.docker.compose.project=fleetiot-coursework,com.docker.compose.project.config_files=C:\\\\Users\\\\Shikami\\\\Desktop\\\\Учеба 2\\\\Технології розробки додатків для інтернету речей\\\\Готові роботи\\\\fleet\\\\compose.yml\",\"LocalVolumes\":\"0\",\"Mounts\":\"\",\"Name\":\"fleetiot-coursework-geofence-1\",\"Names\":\"fleetiot-coursework-geofence-1\",\"Networks\":\"fleetiot-coursework_default\",\"Ports\":\"3080/tcp\",\"Project\":\"fleetiot-coursework\",\"Publishers\":[{\"URL\":\"\",\"TargetPort\":3080,\"PublishedPort\":0,\"Protocol\":\"tcp\"}],\"RunningFor\":\"12 seconds ago\",\"Service\":\"geofence\",\"Size\":\"0B\",\"State\":\"running\",\"Status\":\"Up Less than a second\"}\n{\"Command\":\"\\\"/docker-entrypoint.…\\\"\",\"CreatedAt\":\"2026-11-20 13:19:19 +0200 EET\",\"Engine\":\"\",\"ExitCode\":0,\"Health\":\"\",\"ID\":\"f2103dbe7c3d\",\"Image\":\"nginx:1.28-alpine\",\"Labels\":\"com.docker.compose.config-hash=f47b07c5e1bac68c19541b5632ea7c27a2e2ff865855fda4a3ce5adb20bd47aa,com.docker.compose.depends_on=backend:service_healthy:false,com.docker.compose.oneoff=False,desktop.docker.io/ports/8080/tcp=127.0.0.1:8096,desktop.docker.io/binds/0/Source=C:\\\\Users\\\\Shikami\\\\Desktop\\\\Учеба 2\\\\Технології розробки додатків для інтернету речей\\\\Готові роботи\\\\fleet\\\\nginx.conf,desktop.docker.io/binds/0/Target=/etc/nginx/conf.d/default.conf,desktop.docker.io/ports.scheme=v2,com.docker.compose.container-number=1,com.docker.compose.image=sha256:0dcc88822d45581e65ae329f8be769762bf628d3b2bb7d2a077d4aa5c98b30e3,com.docker.compose.project=fleetiot-coursework,com.docker.compose.project.config_files=C:\\\\Users\\\\Shikami\\\\Desktop\\\\Учеба 2\\\\Технології розробки додатків для інтернету речей\\\\Готові роботи\\\\fleet\\\\compose.yml,com.docker.compose.project.working_dir=C:\\\\Users\\\\Shikami\\\\Desktop\\\\Учеба 2\\\\Технології розробки додатків для інтернету речей\\\\Готові роботи\\\\fleet,com.docker.compose.service=proxy,desktop.docker.io/binds/0/SourceKind=hostFile,com.docker.compose.version=5.6.1,maintainer=NGINX Docker Maintainers \\u003cdocker-maint@nginx.com\\u003e\",\"LocalVolumes\":\"0\",\"Mounts\":\"/run/desktop/m…\",\"Name\":\"fleetiot-coursework-proxy-1\",\"Names\":\"fleetiot-coursework-proxy-1\",\"Networks\":\"fleetiot-coursework_default\",\"Ports\":\"127.0.0.1:8096-\\u003e8080/tcp\",\"Project\":\"fleetiot-coursework\",\"Publishers\":[{\"URL\":\"127.0.0.1\",\"TargetPort\":8080,\"PublishedPort\":8096,\"Protocol\":\"tcp\"}],\"RunningFor\":\"12 seconds ago\",\"Service\":\"proxy\",\"Size\":\"0B\",\"State\":\"running\",\"Status\":\"Up Less than a second\"}",
   "gps_before_restart": 1,
   "after_restart": {
     "http": 200,
@@ -59,7 +30,7 @@
         "mqtt": "up"
       }
     },
-    "ws": "connected",
+    "ws": "fleet:ready",
     "metrics": {
       "received": 0,
       "stored": 0,
@@ -68,6 +39,7 @@
       "geofence": 0,
       "connections": 1,
       "dispatchers": 1,
+      "fleet_ws_dispatcher_clients": 1,
       "sse": 0
     }
   },

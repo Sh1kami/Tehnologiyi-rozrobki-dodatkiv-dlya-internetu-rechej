@@ -91,4 +91,59 @@ test('MQTT, SQLite, REST, roles, Socket.IO rooms, SSE replay and optimistic sett
   const csv=await(await call('/track?device=truck-07&format=csv',west.accessToken)).text();
   assert.equal(csv.split('\n').length,4);
   console.log(JSON.stringify({mqtt:{...fleet.counters},rooms:{west:westEvents.length,east:eastEvents.length},sseReplay:5,settings:[403,400,200,412]}));
+
+  const telemetry='/telemetry?device=truck-07,van-03&metric=lat&from='+now+'&to='+(now+5);
+  const first=await(await call(telemetry+'&limit=1',west.accessToken)).json();
+  const second=await(await call(telemetry+'&limit=10&cursor='+first.nextCursor,west.accessToken)).json();
+  assert.deepEqual([...first.points,...second.points].map(({device,ts})=>[device,ts]),
+    [['truck-07',now],['van-03',now],['truck-07',now+1],['truck-07',now+2]]);
+  assert.equal(second.nextCursor,null);
+  assert.equal((await call(telemetry+'&limit=0',west.accessToken)).status,400);
+  assert.equal((await call(telemetry+'&cursor=invalid!',west.accessToken)).status,400);
+  assert.equal((await call(telemetry,driver.accessToken)).status,403);
+
+  const circle='/vehicles/truck-07/geofence', polygon='/geofences/truck-07';
+  const shape={lat:50.43,lon:30.51,radiusM:100};
+  assert.equal((await call(circle,driver.accessToken,json('PUT',shape))).status,403);
+  assert.equal((await call(circle,west.accessToken,json('PUT',{...shape,radiusM:99}))).status,400);
+  assert.equal((await call(polygon,west.accessToken,json('PUT',{type:'Polygon'}))).status,400);
+  for(const radiusM of [100,200,300]){
+    const updated={...shape,radiusM};
+    assert.deepEqual(await(await call(circle,west.accessToken,json('PUT',updated))).json(),updated);
+  }
+  assert.equal((await(await call(circle,driver.accessToken)).json()).radiusM,300);
+  const audit=fleet.db.prepare('SELECT author,before_shape,after_shape FROM geofence_audit ORDER BY id').all();
+  assert.deepEqual(audit.map(row=>JSON.parse(row.after_shape).radiusM),[100,200,300]);
+  assert.ok(audit.every(row=>row.author==='dispatch-west'));
+  assert.equal(JSON.parse(audit[2].before_shape).radiusM,200);
+  const exit=once(sw,'geofence:exit');
+  await publish('truck-07','lat',50.45,now+10);
+  await publish('truck-07','lon',30.51,now+10);
+  assert.deepEqual((await exit)[0],{device:'truck-07',ts:now+10});
+
+  const alert='/alerts?device=truck-07&metric=fuel&threshold=10';
+  assert.equal((await call(alert,driver.accessToken)).status,403);
+  for(let i=0;i<60;i++)assert.equal((await call(alert,west.accessToken)).status,200);
+  const throttled=await call(alert,west.accessToken);
+  assert.equal(throttled.status,429);
+  assert.ok(Number(throttled.headers.get('retry-after'))>0);
+  assert.equal((await call(alert,east.accessToken)).status,200);
+  const summary='/reports/gps-summary?from='+now+'&to='+(now+10);
+  assert.equal((await call(summary,driver.accessToken)).status,403);
+  assert.equal((await call('/reports/gps-summary',west.accessToken)).status,400);
+  await publish('van-03','lat',50.4301,now+9);
+  await publish('van-03','lon',30.5101,now+9);
+  await publish('truck-12','lat',50.4301,now+9);
+  await publish('truck-12','lon',30.5101,now+9);
+  await until(async()=>{
+    const payload=await(await call(summary,west.accessToken)).json();
+    return payload.cells.some(cell=>cell.lat===50.43 && cell.lon===30.51 && cell.observations>=2);
+  });
+  assert.ok(fleet.db.prepare('SELECT ts FROM gps_flags WHERE device=?').get('truck-07'));
+  const metrics=await(await call('/metrics',west.accessToken)).json();
+  assert.equal(metrics.fleet_ws_dispatcher_clients,2);
+  se.disconnect();
+  await until(async()=> (await(await call('/metrics',west.accessToken)).json()).fleet_ws_dispatcher_clients===1);
+  console.log(JSON.stringify({paginationPoints:4,geofenceAuditEntries:audit.length,geofenceExit:true,
+    requestsPerDispatcher:60,limitStatus:throttled.status,dispatcherGauge:[2,1]}));
 });

@@ -1,6 +1,33 @@
 export const metrics = new Set(['speed', 'fuel', 'lat', 'lon', 'engine']);
 export const zone = [[30.47,50.40],[30.57,50.40],[30.57,50.48],[30.47,50.48]];
 
+export function distanceMeters(a, b) {
+  const radians = Math.PI / 180;
+  const latitude = (b.lat - a.lat) * radians;
+  const longitude = (b.lon - a.lon) * radians;
+  const haversine = Math.sin(latitude / 2) ** 2 +
+    Math.cos(a.lat * radians) * Math.cos(b.lat * radians) * Math.sin(longitude / 2) ** 2;
+  return 12742000 * Math.asin(Math.sqrt(Math.min(1, haversine)));
+}
+
+export function implausiblePosition(previous, current) {
+  const elapsed = (current.ts - previous.ts) / 3600000;
+  if (!Number.isFinite(elapsed) || elapsed <= 0 ||
+      ![previous.lat,previous.lon,current.lat,current.lon].every(Number.isFinite)) return false;
+  return distanceMeters(previous,current) / 1000 / elapsed > 250;
+}
+
+export function validCircle(circle) {
+  return !!circle && Number.isFinite(circle.lat) && Math.abs(circle.lat) <= 90 &&
+    Number.isFinite(circle.lon) && Math.abs(circle.lon) <= 180 &&
+    Number.isInteger(circle.radiusM) && circle.radiusM >= 100 && circle.radiusM <= 5000;
+}
+
+export function outsideZone(position, geofence) {
+  if (geofence?.radiusM) return distanceMeters(position, geofence) > geofence.radiusM;
+  return isOutsideGeofence([position.lon, position.lat], geofence?.polygon ?? zone);
+}
+
 export function isOverspeed(speed, limit, tolerance = 0) {
   if (![speed, limit, tolerance].every(Number.isFinite) || speed < 0 || limit <= 0 || tolerance < 0) {
     throw new RangeError('invalid speed, limit, or tolerance');
@@ -32,7 +59,7 @@ export function point(payload) {
 export function vehicleStatus(latest, settings, now=Date.now()) {
   if (!latest.lat || !latest.lon || latest.lat.ts!==latest.lon.ts || now-latest.lat.ts>180000) return 'offline';
   if (latest.fuel?.value < settings.fuelMinPercent) return 'critical';
-  if (isOutsideGeofence([latest.lon.value,latest.lat.value],zone)) return 'outside';
+  if (outsideZone({lon:latest.lon.value,lat:latest.lat.value},settings.geofence)) return 'outside';
   if (latest.speed && isOverspeed(latest.speed.value,settings.speedLimit)) return 'speed';
   if (latest.fuel?.value <= 20) return 'warning';
   return 'normal';

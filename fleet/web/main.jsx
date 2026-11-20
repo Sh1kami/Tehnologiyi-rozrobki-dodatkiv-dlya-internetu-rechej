@@ -46,6 +46,7 @@ function FleetMap({vehicle,track}){
       if(!map.current)return;
       if(!marker.current)marker.current=L.circleMarker([lat,lon],{radius:9,color:'#fff',weight:3,fillColor:'#143d51',fillOpacity:1}).addTo(map.current);
       else marker.current.setLatLng([lat,lon]);
+      marker.current.getElement()?.setAttribute('data-testid','vehicle-marker');
     };
     const timer=setTimeout(draw,200);
     return ()=>clearTimeout(timer);
@@ -79,8 +80,10 @@ function App(){
   const [username,setUsername]=useState('dispatch-west'),[password,setPassword]=useState('');
   const [pending,setPending]=useState(false);
   const latest=useRef(new Map());
+  const historyCache=useRef(new Map());
   const active=vehicles.find(x=>x.id===selected);
   function openSession(value){
+    historyCache.current.clear();
     setFailure('');setVehicles([]);setSession(value);setPassword('');
   }
   async function login(e){
@@ -99,7 +102,7 @@ function App(){
         const data=await(await request('/devices',session.accessToken)).json();if(!alive)return;
         setVehicles(data);setFailure('');
         setSelected(id=>data.some(x=>x.id===id)?id:data[0]?.id);
-      }catch(e){if(alive)setFailure(e.status===401?'Сеанс завершився. Увійдіть повторно.':'Не вдалося завантажити транспорт.');}
+      }catch(e){if(alive)setFailure(e.status===401?'Сеанс завершився. Увійдіть повторно.':'Втрачено зв’язок із сервером. Не вдалося завантажити транспорт.');}
     }
     const socket=io({auth:{token:session.accessToken}});
     socket.on('connect',()=>{setStatus('Наживо');setAttempts(0);load();});
@@ -130,13 +133,23 @@ function App(){
   useEffect(()=>{
     if(!session||!selected)return;
     const controller=new AbortController();
+    const cacheKey=selected+':'+range;
+    const cached=historyCache.current.get(cacheKey);
+    if(cached && Date.now()-cached.at<30000){
+      setFuel(cached.fuel);setTrack(cached.track);setHistoryError('');setUpdating(false);
+      return;
+    }
     const to=Date.now(), from=to-(range==='week'?604800000:86400000);
     setUpdating(true);setHistoryError('');setFuel([]);setTrack([]);
     const query='device='+encodeURIComponent(selected)+'&from='+from+'&to='+to;
     Promise.all([
       request('/telemetry?metric=fuel&'+query,session.accessToken,{signal:controller.signal}).then(r=>r.json()),
       request('/track?'+query,session.accessToken,{signal:controller.signal}).then(r=>r.json()),
-    ]).then(([f,t])=>{setFuel(f.points);setTrack(t.points);}).catch(e=>{if(e.name!=='AbortError')setHistoryError('Історію не завантажено. Перемкніть період, щоб повторити.');})
+    ]).then(([f,t])=>{
+      if(controller.signal.aborted)return;
+      historyCache.current.set(cacheKey,{at:Date.now(),fuel:f.points,track:t.points});
+      setFuel(f.points);setTrack(t.points);
+    }).catch(e=>{if(!controller.signal.aborted)setHistoryError('Історію не завантажено. Перемкніть період, щоб повторити.');})
       .finally(()=>{if(!controller.signal.aborted)setUpdating(false);});
     return()=>controller.abort();
   },[selected,range,session]);

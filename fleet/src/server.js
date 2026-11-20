@@ -8,7 +8,7 @@ import {Server} from 'socket.io';
 import mqtt from 'mqtt';
 import {existsSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
-import {metrics,point,averageBuckets,validSettings,simplifyTrack,vehicleStatus} from './domain.js';
+import {metrics,point,averageBuckets,validSettings,simplifyTrack,vehicleStatus,validCircle,zone,implausiblePosition} from './domain.js';
 
 const seeds=[
   ['truck-07','Тягач 07','west','Рейс 42'],
@@ -24,11 +24,15 @@ export function createFleet({database=':memory:', mqttUrl, secret, password, ori
   const db=new DatabaseSync(database);
   db.exec('PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON');
   db.exec("CREATE TABLE IF NOT EXISTS devices(id TEXT PRIMARY KEY, name TEXT, region TEXT, route TEXT, speedLimit INTEGER DEFAULT 60, fuelMinPercent INTEGER DEFAULT 10, version INTEGER DEFAULT 1); CREATE TABLE IF NOT EXISTS users(id TEXT PRIMARY KEY, role TEXT NOT NULL, vehicle TEXT REFERENCES devices(id)); CREATE TABLE IF NOT EXISTS points(device TEXT REFERENCES devices(id), metric TEXT, ts INTEGER, value REAL, PRIMARY KEY(device,metric,ts)); CREATE TABLE IF NOT EXISTS events(id INTEGER PRIMARY KEY, device TEXT, metric TEXT, ts INTEGER, value REAL); CREATE TABLE IF NOT EXISTS geofence_events(device TEXT, ts INTEGER, outside INTEGER, PRIMARY KEY(device,ts));");
+  db.exec(`CREATE TABLE IF NOT EXISTS vehicle_zones(device TEXT PRIMARY KEY REFERENCES devices(id), shape TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS geofence_audit(id INTEGER PRIMARY KEY, device TEXT REFERENCES devices(id), changed_at INTEGER NOT NULL,
+      author TEXT REFERENCES users(id), before_shape TEXT NOT NULL, after_shape TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS gps_flags(device TEXT REFERENCES devices(id), ts INTEGER, PRIMARY KEY(device,ts))`);
   for (const row of seeds) db.prepare('INSERT OR IGNORE INTO devices(id,name,region,route) VALUES(?,?,?,?)').run(...row);
   for(const row of [['driver','driver','truck-07'],['dispatch-west','dispatcher',null],['dispatch-east','dispatcher',null]]) db.prepare('INSERT OR IGNORE INTO users VALUES(?,?,?)').run(...row);
   const users=new Map(db.prepare('SELECT * FROM users').all().map(x=>[x.id,{...x,region:x.id.endsWith('-west')?'west':x.id.endsWith('-east')?'east':null}]));
   const passHash=bcrypt.hashSync(password,10);
-  const refresh=new Map(), attempts=new Map(), streams=new Set(), expiries=new Map();
+  const refresh=new Map(), attempts=new Map(), alertLimits=new Map(), streams=new Set(), expiries=new Map();
   const counters={received:0,stored:0,rejected:0,duplicate:0,geofence:0};
   const app=express();
   app.disable('x-powered-by');
@@ -46,7 +50,11 @@ export function createFleet({database=':memory:', mqttUrl, secret, password, ori
   const io=new Server(http,{cors:origin?{origin}:undefined,path:process.env.WS_PATH || '/socket.io'});
   const broker=mqtt.connect(mqttUrl,{reconnectPeriod:500,connectTimeout:3000});
   broker.on('error',()=>{});
-  broker.on('connect',()=>broker.subscribe(['fleet/+/telemetry','fleet/+/geofence'],{qos:1}));
+  const publishZone=(id,shape)=>broker.publish('fleet/'+id+'/geofence-config',shape,{qos:1,retain:true});
+  broker.on('connect',()=>{
+    broker.subscribe(['fleet/+/telemetry','fleet/+/geofence'],{qos:1});
+    for(const {device,shape} of db.prepare('SELECT * FROM vehicle_zones').all())publishZone(device,shape);
+  });
 
   function visible(user, device) { return user.role==='dispatcher' || user.vehicle===device; }
   function receives(user, device) {
@@ -96,6 +104,7 @@ export function createFleet({database=':memory:', mqttUrl, secret, password, ori
     res.set('Cache-Control','no-store').json(tokens(users.get(state.user)));
   });
   const deviceInfo=id=>db.prepare('SELECT * FROM devices WHERE id=?').get(id);
+  const savedZone=id=>db.prepare('SELECT shape FROM vehicle_zones WHERE device=?').get(id)?.shape;
   const windowed=(id,metric,from,to)=>db.prepare('SELECT ts,value FROM points WHERE device=? AND metric=? AND ts BETWEEN ? AND ? ORDER BY ts LIMIT 10000').all(id,metric,from,to);
   function decision(req,res,id){
     const device=deviceInfo(id);
@@ -115,13 +124,34 @@ export function createFleet({database=':memory:', mqttUrl, secret, password, ori
         const value=db.prepare('SELECT ts,value FROM points WHERE device=? AND metric=? ORDER BY ts DESC LIMIT 1').get(d.id,metric);
         return value?[[metric,value]]:[];
       }));
-      return {...d,latest,status:vehicleStatus(latest,d)};
+      const shape=savedZone(d.id), geofence=shape?JSON.parse(shape):null;
+      return {...d,geofence,latest,status:vehicleStatus(latest,{...d,geofence})};
     }));
   });
   app.get('/api/v1/telemetry',auth,(req,res)=>{
-    const {device,metric,agg,interval}=req.query, time=getWindow(req);
+    const {device,metric,agg,interval,cursor,limit}=req.query, time=getWindow(req);
     if(typeof device!=='string'||!metrics.has(metric)||!time|| (agg!==undefined && (agg!=='avg'||interval!=='15m'))) return err(res,400,'invalid_query');
-    if(!decision(req,res,device))return;
+    const ids=[...new Set(device.split(','))].sort();
+    if(ids.length>25 || ids.some(id=>!id) || (agg && (ids.length>1 || cursor!==undefined || limit!==undefined))) return err(res,400,'invalid_query');
+    if(ids.some(id=>!decision(req,res,id)))return;
+    if(ids.length>1 || cursor!==undefined || limit!==undefined){
+      const pageSize=Number(limit ?? 100);
+      let after=[-1,''];
+      if(cursor!==undefined){
+        if(typeof cursor!=='string'||cursor.length>160||!/^[-_a-zA-Z0-9]+$/.test(cursor))return err(res,400,'invalid_cursor');
+        try{after=JSON.parse(Buffer.from(cursor,'base64url').toString('utf8'));}
+        catch{return err(res,400,'invalid_cursor');}
+        if(!Array.isArray(after)||after.length!==2||!Number.isSafeInteger(after[0])||after[0]<time[0]||after[0]>time[1]||!ids.includes(after[1]))return err(res,400,'invalid_cursor');
+      }
+      if(!Number.isInteger(pageSize)||pageSize<1||pageSize>500)return err(res,400,'invalid_limit');
+      const slots=ids.map(()=>'?').join(',');
+      const rows=db.prepare(`SELECT device,ts,value FROM points WHERE device IN (${slots}) AND metric=? AND ts BETWEEN ? AND ? AND (ts,device)>(?,?) ORDER BY ts,device LIMIT ?`).all(...ids,metric,...time,...after,pageSize+1);
+      const hasMore=rows.length>pageSize;
+      if(hasMore)rows.pop();
+      const last=rows.at(-1);
+      const nextCursor=hasMore?Buffer.from(JSON.stringify([last.ts,last.device])).toString('base64url'):null;
+      return res.json({device,metric,points:rows,nextCursor});
+    }
     const points=windowed(device,metric,...time);
     res.json({device,metric,points:agg?averageBuckets(points):points});
   });
@@ -133,7 +163,29 @@ export function createFleet({database=':memory:', mqttUrl, secret, password, ori
     if(format==='csv')return res.type('text/csv').attachment('track.csv').send('ts,lat,lon,speed\n'+positions.map(p=>[p.ts,p.lat,p.lon,p.speed??''].join(',')).join('\n'));
     res.json({device,total:positions.length,points:simplifyTrack(positions)});
   });
+  app.get('/api/v1/reports/gps-summary',auth,(req,res)=>{
+    if(req.user.role!=='dispatcher')return err(res,403,'forbidden');
+    const time=getWindow(req);
+    if(!time||req.query.from===undefined||req.query.to===undefined)return err(res,400,'invalid_query');
+    const cells=db.prepare(`SELECT ROUND(a.value,3) AS lat, ROUND(b.value,3) AS lon, COUNT(*) AS observations
+      FROM points a JOIN points b ON a.device=b.device AND a.ts=b.ts AND b.metric='lon'
+      LEFT JOIN gps_flags f ON f.device=a.device AND f.ts=a.ts
+      WHERE a.metric='lat' AND a.ts BETWEEN ? AND ? AND f.ts IS NULL
+      GROUP BY ROUND(a.value,3), ROUND(b.value,3) HAVING COUNT(DISTINCT a.device)>=2
+      ORDER BY observations DESC, lat, lon LIMIT 500`).all(...time);
+    res.json({precision:3,cells});
+  });
   app.get('/api/v1/alerts',auth,(req,res)=>{
+    if(req.user.role!=='dispatcher')return err(res,403,'forbidden');
+    const now=Date.now(), key=req.user.id;
+    const existing=alertLimits.get(key);
+    const state=existing?.until>now?existing:{count:0,until:now+60000};
+    if(state.count>=60){
+      res.set('Retry-After',String(Math.ceil((state.until-now)/1000)));
+      return err(res,429,'try_later');
+    }
+    state.count++;
+    alertLimits.set(key,state);
     const {device,metric='fuel',threshold='10'}=req.query,time=getWindow(req),limit=Number(threshold);
     if(typeof device!=='string'||!['fuel','speed'].includes(metric)||!Number.isFinite(limit)||limit<0||!time) return err(res,400,'invalid_query');
     if(!decision(req,res,device))return;
@@ -154,16 +206,57 @@ export function createFleet({database=':memory:', mqttUrl, secret, password, ori
     db.prepare('UPDATE devices SET speedLimit=?,fuelMinPercent=?,version=version+1 WHERE id=?').run(speedLimit,fuelMinPercent,d.id);
     res.set('ETag','"'+(d.version+1)+'"').json({speedLimit,fuelMinPercent,version:d.version+1});
   });
+  app.get('/api/v1/vehicles/:id/geofence',auth,(req,res)=>{
+    const device=decision(req,res,req.params.id);
+    if(device)res.json(JSON.parse(savedZone(device.id) ?? JSON.stringify({polygon:zone})));
+  });
+  function updateGeofence(req,res,shape){
+    const device=decision(req,res,req.params.id);
+    if(!device)return;
+    const previous=savedZone(device.id) ?? JSON.stringify({polygon:zone});
+    const next=JSON.stringify(shape);
+    if(next!==previous){
+      const now=Date.now();
+      db.exec('BEGIN');
+      try {
+        db.prepare('INSERT INTO vehicle_zones VALUES (?,?) ON CONFLICT(device) DO UPDATE SET shape=excluded.shape').run(device.id,next);
+        db.prepare('INSERT INTO geofence_audit(device,changed_at,author,before_shape,after_shape) VALUES (?,?,?,?,?)').run(device.id,now,req.user.id,previous,next);
+        db.prepare('DELETE FROM geofence_audit WHERE changed_at < ?').run(now-30*86400000);
+        db.exec('COMMIT');
+      } catch(error){
+        db.exec('ROLLBACK');
+        throw error;
+      }
+      if(broker.connected)publishZone(device.id,next);
+      io.to('fleet:'+device.region).emit('geofence:changed',{device:device.id,ts:now});
+    }
+    res.json(shape);
+  }
+  app.put('/api/v1/vehicles/:id/geofence',auth,(req,res)=>{
+    if(req.user.role!=='dispatcher')return err(res,403,'forbidden');
+    if(!validCircle(req.body))return err(res,400,'invalid_geofence');
+    const {lat,lon,radiusM}=req.body;
+    return updateGeofence(req,res,{lat,lon,radiusM});
+  });
+  app.put('/api/v1/geofences/:id',auth,(req,res)=>{
+    if(req.user.role!=='dispatcher')return err(res,403,'forbidden');
+    const polygon=req.body?.coordinates?.[0];
+    if(req.body?.type!=='Polygon'||!Array.isArray(req.body.coordinates)||req.body.coordinates.length!==1||!Array.isArray(polygon)||polygon.length<4||polygon.length>100||
+       polygon.some(p=>!Array.isArray(p)||p.length!==2||!p.every(Number.isFinite)||Math.abs(p[0])>180||Math.abs(p[1])>90)||
+       polygon[0].some((value,index)=>value!==polygon.at(-1)[index]))return err(res,400,'invalid_geofence');
+    return updateGeofence(req,res,{polygon:polygon.slice(0,-1)});
+  });
   app.get('/api/v1/health',(req,res)=>{
     const checks={db:'up',mqtt:broker.connected?'up':'down'};
     try{db.prepare('SELECT 1').get();}catch{checks.db='down';}
     const ok=Object.values(checks).every(v=>v==='up');
     res.status(ok?200:503).json({status:ok?'ok':'degraded',checks});
   });
-  app.get('/api/v1/metrics',auth,(req,res)=>{
+  app.get('/api/v1/metrics',auth,async(req,res)=>{
     if(req.user.role!=='dispatcher')return err(res,403,'forbidden');
-    res.json({...counters,connections:io.sockets.sockets.size,
-      dispatchers:[...io.sockets.sockets.values()].filter(s=>s.data.user?.role==='dispatcher').length,sse:streams.size});
+    const sockets=await io.fetchSockets();
+    const dispatchers=sockets.filter(s=>s.data.user?.role==='dispatcher').length;
+    res.json({...counters,connections:sockets.length,dispatchers,fleet_ws_dispatcher_clients:dispatchers,sse:streams.size});
   });
 
   function sendEvent(stream,event){
@@ -194,6 +287,7 @@ export function createFleet({database=':memory:', mqttUrl, secret, password, ori
   io.on('connection',socket=>{
     const user=socket.data.user;
     socket.join(user.role==='driver'?'device:'+user.vehicle:'fleet:'+user.region);
+    socket.emit('fleet:ready',{role:user.role});
     const timer=setTimeout(()=>socket.disconnect(true),Math.max(0,socket.data.exp-Date.now())).unref();
     expiries.set(socket.id,timer);
     socket.on('disconnect',()=>{clearTimeout(timer);expiries.delete(socket.id);});
@@ -207,7 +301,12 @@ export function createFleet({database=':memory:', mqttUrl, secret, password, ori
     if(kind==='geofence'){
       if(Number.isSafeInteger(data?.ts)&&typeof data?.outside==='boolean'){
         const ins=db.prepare('INSERT OR IGNORE INTO geofence_events VALUES(?,?,?)').run(id,data.ts,Number(data.outside));
-        if(ins.changes)counters.geofence++;
+        if(ins.changes){
+          counters.geofence++;
+          const d=deviceInfo(id);
+          const prior=db.prepare('SELECT outside FROM geofence_events WHERE device=? AND ts<? ORDER BY ts DESC LIMIT 1').get(id,data.ts);
+          if(data.outside && !prior?.outside)io.to('device:'+id).to('fleet:'+d.region).emit('geofence:exit',{device:id,ts:data.ts});
+        }
       }
       return;
     }
@@ -216,6 +315,12 @@ export function createFleet({database=':memory:', mqttUrl, secret, password, ori
     if(!p){counters.rejected++;return;}
     const insert=db.prepare('INSERT OR IGNORE INTO points VALUES(?,?,?,?)').run(id,p.metric,p.ts,p.value);
     if(!insert.changes){counters.duplicate++;return;}
+    if(p.metric==='lat'||p.metric==='lon'){
+      const pair=db.prepare("SELECT a.ts,a.value AS lat,b.value AS lon FROM points a JOIN points b ON a.device=b.device AND a.ts=b.ts AND b.metric='lon' WHERE a.device=? AND a.metric='lat' AND a.ts<=? ORDER BY a.ts DESC LIMIT 2").all(id,p.ts);
+      if(pair[0]?.ts===p.ts && pair[1] && implausiblePosition(pair[1],pair[0])){
+        db.prepare('INSERT OR IGNORE INTO gps_flags VALUES (?,?)').run(id,p.ts);
+      }
+    }
     counters.stored++;
     const eventId=Number(db.prepare('INSERT INTO events(device,metric,ts,value) VALUES(?,?,?,?)').run(id,p.metric,p.ts,p.value).lastInsertRowid);
     db.prepare('DELETE FROM events WHERE id<=?').run(eventId-256);

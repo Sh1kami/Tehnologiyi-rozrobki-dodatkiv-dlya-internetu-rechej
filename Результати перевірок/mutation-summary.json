@@ -1,0 +1,198 @@
+{
+  "module": "src/domain.js",
+  "mutationScore": 90.9090909090909,
+  "requiredScore": 70,
+  "thresholdPassed": true,
+  "counts": {
+    "Killed": 355,
+    "Survived": 36,
+    "Timeout": 5
+  },
+  "survivorsByArea": {
+    "haversine_and_zone_validation": 4,
+    "polygon": 11,
+    "simplifyTrack": 11
+  },
+  "survivors": [
+    {
+      "line": 2,
+      "operator": "ArrayDeclaration",
+      "replacement": "[]"
+    },
+    {
+      "line": 16,
+      "operator": "MethodExpression",
+      "replacement": "[previous.lat, previous.lon, current.lat, current.lon].some(Number.isFinite)"
+    },
+    {
+      "line": 16,
+      "operator": "ArrayDeclaration",
+      "replacement": "[]"
+    },
+    {
+      "line": 17,
+      "operator": "EqualityOperator",
+      "replacement": "distanceMeters(previous, current) / 1000 / elapsed >= 250"
+    },
+    {
+      "line": 23,
+      "operator": "ConditionalExpression",
+      "replacement": "true"
+    },
+    {
+      "line": 32,
+      "operator": "EqualityOperator",
+      "replacement": "speed <= 0"
+    },
+    {
+      "line": 33,
+      "operator": "StringLiteral",
+      "replacement": "\"\""
+    },
+    {
+      "line": 39,
+      "operator": "ConditionalExpression",
+      "replacement": "false"
+    },
+    {
+      "line": 39,
+      "operator": "StringLiteral",
+      "replacement": "\"\""
+    },
+    {
+      "line": 44,
+      "operator": "EqualityOperator",
+      "replacement": "Math.abs(cross) <= 1e-10"
+    },
+    {
+      "line": 44,
+      "operator": "ConditionalExpression",
+      "replacement": "true"
+    },
+    {
+      "line": 44,
+      "operator": "EqualityOperator",
+      "replacement": "x > Math.min(ax, bx)"
+    },
+    {
+      "line": 44,
+      "operator": "ConditionalExpression",
+      "replacement": "true"
+    },
+    {
+      "line": 44,
+      "operator": "ConditionalExpression",
+      "replacement": "true"
+    },
+    {
+      "line": 44,
+      "operator": "EqualityOperator",
+      "replacement": "y > Math.min(ay, by)"
+    },
+    {
+      "line": 44,
+      "operator": "EqualityOperator",
+      "replacement": "y < Math.max(ay, by)"
+    },
+    {
+      "line": 45,
+      "operator": "EqualityOperator",
+      "replacement": "x <= (bx - ax) * (y - ay) / (by - ay) + ax"
+    },
+    {
+      "line": 45,
+      "operator": "EqualityOperator",
+      "replacement": "x >= (bx - ax) * (y - ay) / (by - ay) + ax"
+    },
+    {
+      "line": 51,
+      "operator": "ConditionalExpression",
+      "replacement": "false"
+    },
+    {
+      "line": 55,
+      "operator": "ConditionalExpression",
+      "replacement": "true"
+    },
+    {
+      "line": 60,
+      "operator": "LogicalOperator",
+      "replacement": "!latest.lat && !latest.lon"
+    },
+    {
+      "line": 61,
+      "operator": "OptionalChaining",
+      "replacement": "latest.fuel.value"
+    },
+    {
+      "line": 64,
+      "operator": "OptionalChaining",
+      "replacement": "latest.fuel.value"
+    },
+    {
+      "line": 69,
+      "operator": "ConditionalExpression",
+      "replacement": "true"
+    },
+    {
+      "line": 70,
+      "operator": "ConditionalExpression",
+      "replacement": "true"
+    },
+    {
+      "line": 84,
+      "operator": "ArithmeticOperator",
+      "replacement": "p.lat * Math.PI * 180"
+    },
+    {
+      "line": 84,
+      "operator": "ArithmeticOperator",
+      "replacement": "p.lat / Math.PI"
+    },
+    {
+      "line": 85,
+      "operator": "ArithmeticOperator",
+      "replacement": "(b.lon - a.lon) / k"
+    },
+    {
+      "line": 85,
+      "operator": "ArithmeticOperator",
+      "replacement": "b.lon + a.lon"
+    },
+    {
+      "line": 85,
+      "operator": "ArithmeticOperator",
+      "replacement": "(p.lon - a.lon) / k"
+    },
+    {
+      "line": 87,
+      "operator": "ArithmeticOperator",
+      "replacement": "x / dx"
+    },
+    {
+      "line": 98,
+      "operator": "EqualityOperator",
+      "replacement": "i <= end"
+    },
+    {
+      "line": 100,
+      "operator": "EqualityOperator",
+      "replacement": "d >= best"
+    },
+    {
+      "line": 102,
+      "operator": "ArrayDeclaration",
+      "replacement": "[]"
+    },
+    {
+      "line": 102,
+      "operator": "ArrayDeclaration",
+      "replacement": "[]"
+    },
+    {
+      "line": 107,
+      "operator": "EqualityOperator",
+      "replacement": "i <= 24"
+    }
+  ]
+}

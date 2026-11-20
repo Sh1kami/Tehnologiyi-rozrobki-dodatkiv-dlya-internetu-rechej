@@ -4,3 +4,8 @@ coverage
 *.sqlite*
 .env
 .env.*
+.deployed-image*
+.stryker-tmp
+test-results
+playwright-report
+reports/mutation

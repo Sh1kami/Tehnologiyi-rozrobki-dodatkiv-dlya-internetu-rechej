@@ -1,8 +1,12 @@
+import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart' show LatLng;
 import 'package:socket_io_client/socket_io_client.dart' as io;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'api.dart';
 
 void main() {
@@ -196,6 +200,7 @@ class _Detail extends State<Detail> {
   late final Map<String, dynamic> latest;
   late Future<dynamic> series;
   bool live = false, osm = false;
+  final mapController = MapController();
   String get id => widget.row['id'] as String;
   Future<dynamic> history() async => widget.api.decode(
     await widget.api.send('GET', '/telemetry?device=$id&metric=fuel'),
@@ -219,6 +224,21 @@ class _Detail extends State<Detail> {
     socket.onDisconnect((_) {
       if (mounted) setState(() => live = false);
     });
+    socket.on('geofence:exit', (event) {
+      if (!mounted || event is! Map || event['device'] != id) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Вихід за геозону'),
+          action: SnackBarAction(
+            label: 'Карта',
+            onPressed: () {
+              final position = gps();
+              if (position != null) mapController.move(position, 14);
+            },
+          ),
+        ),
+      );
+    });
     socket.on('telemetry:update', (e) {
       if (!mounted || e is! Map || e['device'] != id) return;
       final metric = e['metric'];
@@ -234,17 +254,14 @@ class _Detail extends State<Detail> {
   @override
   void dispose() {
     socket.dispose();
+    mapController.dispose();
     super.dispose();
   }
 
   num? read(String metric) => latest[metric]?['value'] as num?;
   LatLng? gps() {
     final a = read('lat'), b = read('lon'), ts = latest['lat']?['ts'] as int?;
-    if (a == null ||
-        b == null ||
-        ts == null ||
-        latest['lon']?['ts'] != ts ||
-        DateTime.now().millisecondsSinceEpoch - ts > 180000) {
+    if (a == null || b == null || ts == null || latest['lon']?['ts'] != ts) {
       return null;
     }
     return LatLng(a.toDouble(), b.toDouble());
@@ -253,6 +270,16 @@ class _Detail extends State<Detail> {
   @override
   Widget build(BuildContext context) {
     final speed = read('speed'), fuel = read('fuel'), position = gps();
+    final gpsTimestamp = latest['lat']?['ts'] as int?;
+    final stale =
+        gpsTimestamp != null &&
+        (!live ||
+            DateTime.now().millisecondsSinceEpoch - gpsTimestamp > 180000);
+    final lastSeen = gpsTimestamp == null
+        ? ''
+        : TimeOfDay.fromDateTime(
+            DateTime.fromMillisecondsSinceEpoch(gpsTimestamp),
+          ).format(context);
     final state = fuel == null
         ? 'Немає даних'
         : fuel < 10
@@ -287,6 +314,7 @@ class _Detail extends State<Detail> {
           SizedBox(
             height: 235,
             child: FlutterMap(
+              mapController: mapController,
               options: MapOptions(
                 initialCenter: position ?? const LatLng(50.44, 30.52),
                 initialZoom: 12,
@@ -341,6 +369,8 @@ class _Detail extends State<Detail> {
           Text(
             position == null
                 ? 'Немає актуальної позиції'
+                : stale
+                ? 'Остання позиція $lastSeen'
                 : 'GPS ${position.latitude.toStringAsFixed(5)}, ${position.longitude.toStringAsFixed(5)}',
           ),
           const SizedBox(height: 16),
@@ -432,15 +462,30 @@ class _Settings extends State<Settings> {
       fuel = TextEditingController();
   String? tag, error;
   bool busy = false;
+  LatLng? center;
+  double radius = 1000;
+  final storage = SharedPreferencesAsync();
+  Timer? retryTimer;
+  String? queued;
   String get path => '/vehicles/${widget.id}/alert-settings';
+  String get zonePath => '/vehicles/${widget.id}/geofence';
+  String get queueKey =>
+      'fleet-pending:${widget.api.url}:${widget.api.user}:${widget.id}';
   @override
   void initState() {
     super.initState();
     load();
+    loadZone();
+    retryTimer = Timer.periodic(
+      const Duration(seconds: 15),
+      (_) => flushQueue(),
+    );
+    flushQueue();
   }
 
   @override
   void dispose() {
+    retryTimer?.cancel();
     speed.dispose();
     fuel.dispose();
     super.dispose();
@@ -467,20 +512,18 @@ class _Settings extends State<Settings> {
 
   Future<void> save() async {
     if (!form.currentState!.validate() || tag == null) return;
+    final expected = tag!;
+    final values = {
+      'speedLimit': int.parse(speed.text),
+      'fuelMinPercent': int.parse(fuel.text),
+    };
     setState(() {
       busy = true;
       error = null;
     });
     try {
-      await widget.api.send(
-        'PUT',
-        path,
-        tag: tag,
-        data: {
-          'speedLimit': int.parse(speed.text),
-          'fuelMinPercent': int.parse(fuel.text),
-        },
-      );
+      await widget.api.send('PUT', path, tag: expected, data: values);
+      await storage.remove(queueKey);
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -488,13 +531,163 @@ class _Settings extends State<Settings> {
       }
       await load();
     } catch (e) {
+      if (!mounted) return;
+      if (e is ApiError && e.status == 412) {
+        await storage.remove(queueKey);
+        await resolveConflict();
+      } else if (e is TimeoutException || e is http.ClientException) {
+        await storage.setString(
+          queueKey,
+          jsonEncode({
+            'expires': DateTime.now()
+                .add(const Duration(hours: 24))
+                .millisecondsSinceEpoch,
+            'tag': expected,
+            'values': values,
+          }),
+        );
+        if (mounted) {
+          setState(() => queued = 'Зміни збережено в черзі на 24 години.');
+        }
+      } else {
+        setState(() => error = 'Зберегти не вдалося. Перевірте з’єднання.');
+      }
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  Future<void> flushQueue() async {
+    if (busy) return;
+    final payload = await storage.getString(queueKey);
+    if (!mounted || busy || payload == null) return;
+    final pending = jsonDecode(payload) as Map<String, dynamic>;
+    if ((pending['expires'] as int) <= DateTime.now().millisecondsSinceEpoch) {
+      await storage.remove(queueKey);
       if (mounted) {
         setState(
-          () => error = e is ApiError && e.status == 412
-              ? 'Налаштування змінилися. Оновіть поля.'
-              : 'Зберегти не вдалося.',
+          () => queued = 'Строк очікування минув. Надішліть зміни знову.',
         );
       }
+      return;
+    }
+    setState(() {
+      busy = true;
+      queued = 'Відправлення збережених налаштувань…';
+    });
+    try {
+      await widget.api.send(
+        'PUT',
+        path,
+        tag: pending['tag'] as String,
+        data: pending['values'],
+      );
+      await storage.remove(queueKey);
+      await load();
+      if (mounted) {
+        setState(
+          () => queued = 'Відкладені налаштування збережено на сервері.',
+        );
+      }
+    } on ApiError catch (exception) {
+      if (exception.status == 412 && mounted) {
+        final values = pending['values'] as Map<String, dynamic>;
+        speed.text = values['speedLimit'].toString();
+        fuel.text = values['fuelMinPercent'].toString();
+        await storage.remove(queueKey);
+        if (mounted) setState(() => queued = null);
+        await resolveConflict();
+      } else if (mounted) {
+        setState(() => queued = 'Сервер поки відхиляє відкладену зміну.');
+      }
+    } catch (_) {
+      if (mounted) setState(() => queued = 'Зміни очікують на з’єднання.');
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  Future<void> resolveConflict() async {
+    try {
+      final response = await widget.api.send('GET', path);
+      final server = widget.api.decode(response);
+      if (!mounted) return;
+      final keep = await showDialog<bool>(
+        context: context,
+        builder: (dialog) => AlertDialog(
+          title: const Text('Налаштування змінилися'),
+          content: Text(
+            'Мої: ${speed.text} км/год, ${fuel.text}%\n'
+            'Сервер: ${server['speedLimit']} км/год, ${server['fuelMinPercent']}%',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialog, false),
+              child: const Text('Взяти серверні'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialog, true),
+              child: const Text('Залишити мої'),
+            ),
+          ],
+        ),
+      );
+      if (!mounted || keep == null) return;
+      setState(() {
+        tag = response.headers['etag'];
+        if (keep) {
+          error =
+              'Власні значення залишено. Натисніть «Зберегти», щоб підтвердити.';
+        } else {
+          speed.text = server['speedLimit'].toString();
+          fuel.text = server['fuelMinPercent'].toString();
+          error = null;
+        }
+      });
+    } catch (_) {
+      if (mounted) {
+        setState(() => error = 'Не вдалося завантажити серверні значення.');
+      }
+    }
+  }
+
+  Future<void> loadZone() async {
+    try {
+      final zone = widget.api.decode(await widget.api.send('GET', zonePath));
+      if (!mounted || center != null || zone['radiusM'] is! num) return;
+      setState(() {
+        center = LatLng(
+          (zone['lat'] as num).toDouble(),
+          (zone['lon'] as num).toDouble(),
+        );
+        radius = (zone['radiusM'] as num).toDouble();
+      });
+    } catch (_) {
+      // The map can still accept a new center when the connection returns.
+    }
+  }
+
+  Future<void> saveZone() async {
+    final target = center;
+    if (target == null) return;
+    setState(() => busy = true);
+    try {
+      await widget.api.send(
+        'PUT',
+        zonePath,
+        data: {
+          'lat': target.latitude,
+          'lon': target.longitude,
+          'radiusM': radius.round(),
+        },
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Кругову геозону збережено')),
+        );
+      }
+    } catch (_) {
+      if (mounted) setState(() => error = 'Не вдалося зберегти геозону.');
     } finally {
       if (mounted) setState(() => busy = false);
     }
@@ -531,6 +724,51 @@ class _Settings extends State<Settings> {
             onPressed: busy || tag == null ? null : save,
             child: const Text('Зберегти'),
           ),
+          const SizedBox(height: 24),
+          Text('Геозона', style: Theme.of(context).textTheme.titleLarge),
+          const Text('Торкніться карти, щоб вибрати центр.'),
+          SizedBox(
+            height: 220,
+            child: FlutterMap(
+              options: MapOptions(
+                initialCenter: const LatLng(50.44, 30.52),
+                initialZoom: 12,
+                backgroundColor: const Color(0xffe6eee6),
+                onTap: (_, point) {
+                  if (!busy) setState(() => center = point);
+                },
+              ),
+              children: [
+                if (center != null)
+                  CircleLayer(
+                    circles: [
+                      CircleMarker(
+                        point: center!,
+                        radius: radius,
+                        useRadiusInMeter: true,
+                        color: const Color(0x30438370),
+                        borderColor: const Color(0xff245650),
+                        borderStrokeWidth: 2,
+                      ),
+                    ],
+                  ),
+              ],
+            ),
+          ),
+          Text('Радіус: ${radius.round()} м'),
+          Slider(
+            value: radius,
+            min: 100,
+            max: 5000,
+            divisions: 49,
+            label: '${radius.round()} м',
+            onChanged: busy ? null : (value) => setState(() => radius = value),
+          ),
+          OutlinedButton(
+            onPressed: busy || center == null ? null : saveZone,
+            child: const Text('Зберегти геозону'),
+          ),
+          if (queued != null) Text(queued!),
           if (error != null) ...[
             Text(error!),
             TextButton(onPressed: load, child: const Text('Оновити поля')),

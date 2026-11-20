@@ -9,7 +9,7 @@ class ApiError implements Exception {
 class FleetApi {
   FleetApi(this.url);
   final String url;
-  String? token, role;
+  String? token, role, user;
   Future<http.Response> send(
     String method,
     String path, {
@@ -43,6 +43,7 @@ class FleetApi {
     );
     token = value['accessToken'] as String;
     role = value['role'] as String;
+    this.user = user;
   }
 
   Future<List<Map<String, dynamic>>> devices() async =>

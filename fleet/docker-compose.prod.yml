@@ -1,0 +1,12 @@
+services:
+  broker:
+    restart: unless-stopped
+  backend:
+    build: !reset null
+    image: ${FLEET_IMAGE:?Set FLEET_IMAGE to the GHCR tag or digest}
+    restart: unless-stopped
+  geofence:
+    image: ${FLEET_IMAGE:?Set FLEET_IMAGE to the GHCR tag or digest}
+    restart: unless-stopped
+  proxy:
+    restart: unless-stopped

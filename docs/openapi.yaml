@@ -83,7 +83,13 @@
         ],
         "parameters": [
           {
-            "$ref": "#/components/parameters/Device"
+            "name": "device",
+            "in": "query",
+            "required": true,
+            "description": "Один ідентифікатор ТЗ або список через кому.",
+            "schema": {
+              "type": "string"
+            }
           },
           {
             "$ref": "#/components/parameters/Metric"
@@ -113,6 +119,23 @@
                 "15m"
               ]
             }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "Непрозорий курсор із поля nextCursor попередньої відповіді.",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -134,6 +157,10 @@
                       "items": {
                         "$ref": "#/components/schemas/Point"
                       }
+                    },
+                    "nextCursor": {
+                      "type": "string",
+                      "nullable": true
                     }
                   }
                 }
@@ -180,7 +207,8 @@
               }
             }
           }
-        }
+        },
+        "description": "Стабільний порядок (ts, device). Для сторінкування передайте limit, зафіксуйте from/to і повторюйте запит із nextCursor. До 25 ідентифікаторів через кому. Агрегація працює для одного ТЗ без курсора."
       }
     },
     "/track": {
@@ -371,7 +399,7 @@
             }
           },
           "403": {
-            "description": "ТЗ поза правами користувача",
+            "description": "Доступ лише для диспетчера.",
             "content": {
               "application/json": {
                 "schema": {
@@ -389,8 +417,28 @@
                 }
               }
             }
+          },
+          "429": {
+            "description": "Перевищено 60 запитів за хвилину.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            }
           }
-        }
+        },
+        "description": "Запит диспетчера. x-rate-limit: 60/min для окремого облікового запису.",
+        "x-rate-limit": "60/min"
       }
     },
     "/vehicles/{id}/alert-settings": {
@@ -725,6 +773,458 @@
           }
         }
       }
+    },
+    "/vehicles/{id}/geofence": {
+      "get": {
+        "operationId": "getVehicleGeofence",
+        "description": "Поточна геозона доступного ТЗ.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Успішний результат",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/GeofenceCircle"
+                    },
+                    {
+                      "$ref": "#/components/schemas/GeofencePolygon"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Некоректні параметри",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Потрібен токен",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ТЗ поза правами користувача",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ТЗ не знайдено",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "setVehicleGeofence",
+        "description": "Диспетчер встановлює центр і радіус. Зміна реєструється в журналі.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Успішний результат",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GeofenceCircle"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Некоректні параметри",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Потрібен токен",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ТЗ поза правами користувача",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ТЗ не знайдено",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GeofenceCircle"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/geofences/{id}": {
+      "put": {
+        "operationId": "setGeofencePolygon",
+        "description": "Диспетчер вводить один зовнішній замкнений контур GeoJSON у порядку [lon, lat].",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Успішний результат",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GeofencePolygon"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Некоректні параметри",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Потрібен токен",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ТЗ поза правами користувача",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ТЗ не знайдено",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "type",
+                  "coordinates"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "Polygon"
+                    ]
+                  },
+                  "coordinates": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 1,
+                    "items": {
+                      "type": "array",
+                      "minItems": 4,
+                      "maxItems": 100,
+                      "items": {
+                        "type": "array",
+                        "minItems": 2,
+                        "maxItems": 2,
+                        "items": {
+                          "type": "number"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reports/gps-summary": {
+      "get": {
+        "operationId": "gpsSummary",
+        "description": "Зведення для диспетчера: координати до трьох знаків, лише комірки з двома ТЗ або більше, підозрілі точки пропускаються.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Успішний результат",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "precision": {
+                      "type": "integer",
+                      "example": 3
+                    },
+                    "cells": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "lat": {
+                            "type": "number"
+                          },
+                          "lon": {
+                            "type": "number"
+                          },
+                          "observations": {
+                            "type": "integer"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Некоректні параметри",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Потрібен токен",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ТЗ поза правами користувача",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/metrics": {
+      "get": {
+        "operationId": "fleetMetrics",
+        "description": "Поточні лічильники стенда і gauge активних диспетчерських Socket.IO з’єднань.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Успішний результат",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "received": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "stored": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "rejected": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "duplicate": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "geofence": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "connections": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "dispatchers": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "fleet_ws_dispatcher_clients": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "sse": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Потрібен токен",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ТЗ поза правами користувача",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -747,6 +1247,10 @@
           "count": {
             "type": "integer",
             "minimum": 1
+          },
+          "device": {
+            "type": "string",
+            "description": "Ідентифікатор ТЗ у відповіді зі сторінкуванням."
           }
         }
       },
@@ -793,6 +1297,11 @@
               "outside",
               "offline"
             ]
+          },
+          "geofence": {
+            "nullable": true,
+            "type": "object",
+            "description": "Власне коло або полігон ТЗ. Null означає типову геозону."
           }
         }
       },
@@ -845,6 +1354,50 @@
           "speed": {
             "type": "number",
             "nullable": true
+          }
+        }
+      },
+      "GeofenceCircle": {
+        "type": "object",
+        "required": [
+          "lat",
+          "lon",
+          "radiusM"
+        ],
+        "properties": {
+          "lat": {
+            "type": "number",
+            "minimum": -90,
+            "maximum": 90
+          },
+          "lon": {
+            "type": "number",
+            "minimum": -180,
+            "maximum": 180
+          },
+          "radiusM": {
+            "type": "integer",
+            "minimum": 100,
+            "maximum": 5000
+          }
+        }
+      },
+      "GeofencePolygon": {
+        "type": "object",
+        "required": [
+          "polygon"
+        ],
+        "properties": {
+          "polygon": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "number"
+              }
+            }
           }
         }
       }

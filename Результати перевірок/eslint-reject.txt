@@ -1,0 +1,9 @@
+
+> fleet-watch@1.0.0 lint
+> eslint . --stdin --stdin-filename src/fixture.js
+
+
+C:\Users\Shikami\Desktop\Учеба 2\Технології розробки додатків для інтернету речей\Готові роботи\fleet\src\fixture.js
+  1:1  error  Unexpected 'debugger' statement  no-debugger
+
+✖ 1 problem (1 error, 0 warnings)

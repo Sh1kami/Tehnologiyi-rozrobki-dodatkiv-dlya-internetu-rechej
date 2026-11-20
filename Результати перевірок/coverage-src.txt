@@ -1,0 +1,186 @@
+
+> fleet-watch@1.0.0 coverage:src
+> node --test --test-concurrency=1 --experimental-test-coverage --test-coverage-include=src/server.js --test-coverage-include=src/domain.js --test-coverage-include=src/geofence.js --test-coverage-lines=80 --test-coverage-branches=70
+
+TAP version 13
+# Subtest: overspeed 58/60/0
+ok 1 - overspeed 58/60/0
+  ---
+  duration_ms: 2.6286
+  type: 'test'
+  ...
+# Subtest: overspeed 60/60/0
+ok 2 - overspeed 60/60/0
+  ---
+  duration_ms: 0.3181
+  type: 'test'
+  ...
+# Subtest: overspeed 61/60/0
+ok 3 - overspeed 61/60/0
+  ---
+  duration_ms: 0.1267
+  type: 'test'
+  ...
+# Subtest: overspeed 63/60/3
+ok 4 - overspeed 63/60/3
+  ---
+  duration_ms: 0.1023
+  type: 'test'
+  ...
+# Subtest: overspeed 64/60/3
+ok 5 - overspeed 64/60/3
+  ---
+  duration_ms: 0.1108
+  type: 'test'
+  ...
+# Subtest: invalid speed -1,60
+ok 6 - invalid speed -1,60
+  ---
+  duration_ms: 1.0686
+  type: 'test'
+  ...
+# Subtest: invalid speed NaN,60
+ok 7 - invalid speed NaN,60
+  ---
+  duration_ms: 0.2496
+  type: 'test'
+  ...
+# Subtest: invalid speed 50,0
+ok 8 - invalid speed 50,0
+  ---
+  duration_ms: 0.1695
+  type: 'test'
+  ...
+# Subtest: invalid speed 50,60,-1
+ok 9 - invalid speed 50,60,-1
+  ---
+  duration_ms: 0.1546
+  type: 'test'
+  ...
+# Subtest: geofence inside
+ok 10 - geofence inside
+  ---
+  duration_ms: 0.5484
+  type: 'test'
+  ...
+# Subtest: geofence outside
+ok 11 - geofence outside
+  ---
+  duration_ms: 0.3939
+  type: 'test'
+  ...
+# Subtest: geofence edge
+ok 12 - geofence edge
+  ---
+  duration_ms: 0.1294
+  type: 'test'
+  ...
+# Subtest: geofence vertex
+ok 13 - geofence vertex
+  ---
+  duration_ms: 1.8449
+  type: 'test'
+  ...
+# Subtest: geofence rejects invalid input
+ok 14 - geofence rejects invalid input
+  ---
+  duration_ms: 0.4846
+  type: 'test'
+  ...
+# Subtest: GPS rejects latitude and longitude beyond bounds
+ok 15 - GPS rejects latitude and longitude beyond bounds
+  ---
+  duration_ms: 0.4446
+  type: 'test'
+  ...
+# Subtest: invalid telemetry fields, bounds and engine readings
+ok 16 - invalid telemetry fields, bounds and engine readings
+  ---
+  duration_ms: 1.999
+  type: 'test'
+  ...
+# Subtest: status boundaries for stale GPS, fuel, zone and speed
+ok 17 - status boundaries for stale GPS, fuel, zone and speed
+  ---
+  duration_ms: 0.5562
+  type: 'test'
+  ...
+# Subtest: settings validation and bucket averages
+ok 18 - settings validation and bucket averages
+  ---
+  duration_ms: 0.5377
+  type: 'test'
+  ...
+# Subtest: RDP preserves endpoints and order, <= 500 points
+ok 19 - RDP preserves endpoints and order, <= 500 points
+  ---
+  duration_ms: 34.3008
+  type: 'test'
+  ...
+# Subtest: належність точки не змінюється при однаковому зсуві полігона й точки
+ok 20 - належність точки не змінюється при однаковому зсуві полігона й точки
+  ---
+  duration_ms: 21.8106
+  type: 'test'
+  ...
+# Subtest: GPS: межа 250 км/год, стрибок і некоректний час
+ok 21 - GPS: межа 250 км/год, стрибок і некоректний час
+  ---
+  duration_ms: 0.503
+  type: 'test'
+  ...
+# Subtest: кругова геозона: центр, межа, зовнішня точка й дійсність радіуса
+ok 22 - кругова геозона: центр, межа, зовнішня точка й дійсність радіуса
+  ---
+  duration_ms: 0.3033
+  type: 'test'
+  ...
+# Subtest: гаверсинус враховує широту для зміни довготи
+ok 23 - гаверсинус враховує широту для зміни довготи
+  ---
+  duration_ms: 0.2704
+  type: 'test'
+  ...
+# Subtest: телеметрія та налаштування приймають усі задокументовані межі
+ok 24 - телеметрія та налаштування приймають усі задокументовані межі
+  ---
+  duration_ms: 1.4013
+  type: 'test'
+  ...
+# Subtest: обхід контуру обробляє похилу межу, а спрощення зберігає поворот
+ok 25 - обхід контуру обробляє похилу межу, а спрощення зберігає поворот
+  ---
+  duration_ms: 1.5429
+  type: 'test'
+  ...
+# (node:35068) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# {"mqtt":{"received":10,"stored":8,"rejected":1,"duplicate":1,"geofence":4},"rooms":{"west":6,"east":2},"sseReplay":5,"settings":[403,400,200,412]}
+# {"paginationPoints":4,"geofenceAuditEntries":3,"geofenceExit":true,"requestsPerDispatcher":60,"limitStatus":429,"dispatcherGauge":[2,1]}
+# Subtest: MQTT, SQLite, REST, roles, Socket.IO rooms, SSE replay and optimistic settings
+ok 26 - MQTT, SQLite, REST, roles, Socket.IO rooms, SSE replay and optimistic settings
+  ---
+  duration_ms: 1251.1499
+  type: 'test'
+  ...
+1..26
+# tests 26
+# suites 0
+# pass 26
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3186.7169
+# start of coverage report
+# -----------------------------------------------------------------------
+# file         | line % | branch % | funcs % | uncovered lines
+# -----------------------------------------------------------------------
+# src          |        |          |         |
+#  domain.js   | 100.00 |    98.99 |  100.00 |
+#  geofence.js | 100.00 |    72.22 |   75.00 |
+#  server.js   |  96.19 |    77.16 |   83.33 | 42-48 164 227-229 245 247
+# -----------------------------------------------------------------------
+# all files    |  97.33 |    83.76 |   86.25 |
+# -----------------------------------------------------------------------
+# end of coverage report

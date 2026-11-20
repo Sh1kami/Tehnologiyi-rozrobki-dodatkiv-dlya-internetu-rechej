@@ -1,0 +1,11 @@
+{
+  "ranges": [
+    "day",
+    "week",
+    "day"
+  ],
+  "apiCalls": [
+    "http://127.0.0.1:3080/api/v1/telemetry?metric=fuel&device=truck-07&from=1795087191499&to=1795173591499",
+    "http://127.0.0.1:3080/api/v1/telemetry?metric=fuel&device=truck-07&from=1794568792366&to=1795173592366"
+  ]
+}
