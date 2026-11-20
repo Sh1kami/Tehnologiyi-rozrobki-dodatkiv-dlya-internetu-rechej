@@ -24,7 +24,9 @@ jobs:
       - run: npm audit --omit=dev --audit-level=high
   test:
     runs-on: ubuntu-latest
+    container: mcr.microsoft.com/playwright:v1.56.1-noble
     strategy:
+      fail-fast: false
       matrix:
         node: ['22', '24']
     defaults:
@@ -40,7 +42,6 @@ jobs:
       - run: npm ci
       - run: npm run coverage:src
       - run: npm run build
-      - run: npx playwright install --with-deps chromium
       - run: npm run e2e
       - uses: actions/upload-artifact@v4
         if: always()
